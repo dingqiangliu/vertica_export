@@ -1,0 +1,10 @@
+1,One,一
+2,Two,二
+3,Three,三
+4,Four,四
+5,Five,五
+6,Six,六
+7,Seven,七
+8,Eight,八
+9,Nigh,九
+10,Ten,十
