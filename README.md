@@ -1,8 +1,8 @@
-<html lang="zn_CN"> <head> <meta charset='utf-8'> <title>Parallelly export data out of Vertica</title> </head> <body>
+<html lang="zn_CN"> <head> <meta charset='utf-8'> <title>Export data out of Vertica in parallel</title> </head> <body>
 
-Parallelly export data out of Vertica
+Export data out of Vertica in parallel
 ==========
-This is a Vertica User Defined Functions (UDF) to parallelly export data out of Vertica to local or shared filesystem, ftp, hdfs and other destinations.
+This is a Vertica User Defined Functions (UDF) to export data out of Vertica in parallel to local or shared filesystem, ftp, hdfs and other destinations.
 
 ![vertica_export](./imgs/vertica_export.png)
 
