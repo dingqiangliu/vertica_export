@@ -4,6 +4,8 @@ Parallelly export data out of Vertica
 ==========
 This is a Vertica User Defined Functions (UDF) to parallelly export data out of Vertica to local or shared filesystem, ftp, hdfs and other destinations.
 
+![vertica_export](./imgs/vertica_export.png)
+
 **Note**: This version only support string type values since Vertica6. 
 Although columnName::varchar can help on this, but you have no chance convert the value type if you have many columns and want to use "select * ...".
 [A new version ParallelExport for Vertica7+ (https://marketplace.saas.hpe.com/big-data/content/parallel-export)](https://marketplace.saas.hpe.com/big-data/content/parallel-export) may be helpful on this.
