@@ -40,7 +40,7 @@ Parameters:
 - separator: separator string for concatenating. Optional paramter, default value is '|'.
 - fromcharset: source encoding. Optional paramter, default value is ''.
 - tocharset: target encoding. Optional paramter, default value is ''.
-- (return): statistics, such as output row numbers per node.
+- (return): statistics, such as output row TYPTES per node.
 
 ## Examples
 
@@ -50,7 +50,7 @@ export to file on each node:
 select exportdata(*
   sing parameters path='/data/export-utf8.txt.${nodeName}'
 ) over (partition auto)
-from exportdataTEST.NUMBERS;
+from exportdataTEST.TYPTES;
 ```
 
 export to file on each node, with gb18030 encoding ...
@@ -60,7 +60,7 @@ select exportdata(*
   using parameters path='/data/export-gbk.txt.${nodeName}', separator=','
   , fromcharset='utf8', tocharset='gb18030'
   ) over (partition auto)
-from exportdataTEST.NUMBERS;
+from exportdataTEST.TYPTES;
 ```
 
 export to ftp server:
@@ -70,7 +70,7 @@ select exportdata(*
   using parameters cmd='curl -X PUT -T - ftp://username:password@ftpserver/data/exp-${hostName} 2>&1 > /dev/null'
   , separator=',', fromcharset='utf8', tocharset='gb18030'
   ) over (partition auto)
-from exportdataTEST.NUMBERS;
+from exportdataTEST.TYPTES;
 ```
 
 ## Install, test and uninstall
