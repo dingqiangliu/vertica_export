@@ -7,5 +7,6 @@
  */
 
 -- Step 1: Cleanup
-DROP LIBRARY exportdata CASCADE;
+DROP LIBRARY IF EXISTS exportdata CASCADE;
+DROP LIBRARY IF EXISTS ParallelExport CASCADE;
 

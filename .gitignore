@@ -1,0 +1,14 @@
+
+# C extensions
+*.so
+
+lib/
+lib64/
+
+.DS_Store
+**/.factorypath
+**/.vscode
+**/.settings
+
+testresult.txt
+

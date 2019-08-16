@@ -1,9 +1,10 @@
-/* Copyright (c) 2005 - 2011 Vertica, an HP company -*- C++ -*- */
+/* Copyright (c) 2005 - 2014 Vertica, an HP company -*- C++ -*- */
 /*
  * Description: User Defined Transform Function: concurrently exporting data to files.
  *
  * Create Date: Dec 15, 2011
  */
+
 #include "Vertica.h"
 #include <sstream>
 #include <fstream>
@@ -13,7 +14,7 @@
 
 using namespace Vertica;
 using namespace std;
-
+using namespace Basics;
 
 #define DEFAULT_path ""
 #define DEFAULT_cmd ""
@@ -35,12 +36,12 @@ private:
 public:
 	DataBuffer ccbuf;
 
-	CodeConverter(const char *from_charset, const char *to_charset) {
-		ccbuf.offset = 0;
-		ccbuf.size = 65536;
-		ccbuf.buf = (char*)malloc(ccbuf.size);
-		cd = iconv_open(to_charset, from_charset);
-	}
+    CodeConverter(const char *from_charset, const char *to_charset) {
+        ccbuf.offset = 0;
+        ccbuf.size = 65536;
+        ccbuf.buf = (char*)malloc(ccbuf.size);
+        cd = iconv_open(to_charset, from_charset);
+    }
 
 	~CodeConverter() {
 		if(cd != NULL) {
@@ -73,8 +74,6 @@ public:
 	}
 };
 
-
-
 class Output{
 public:
 	Output(){}
@@ -88,29 +87,29 @@ public:
 
 
 class FileOutput: public Output {
-private:
-    int buffersize;
-	ofstream ofs;
-	
-public:
-	FileOutput(int buffersize): buffersize(buffersize){}
+    private:
+        int buffersize;
+        ofstream ofs;
 
-	void open(std::string path){
-        ofs.open (path.c_str(), ofstream::out | ofstream::app);
-	}
-	
-	void flush(){
-		ofs.flush();
-	}
-  	
-	void close(){
-		ofs.close();
-	}
-	
-	Output& operator<< (const char* s ){
-		ofs << s;
-		return *this;
-	}
+    public:
+        FileOutput(int buffersize): buffersize(buffersize){}
+
+        void open(std::string path){
+            ofs.open (path.c_str(), ofstream::out | ofstream::app);
+        }
+        
+        void flush(){
+            ofs.flush();
+        }
+
+        void close(){
+            ofs.close();
+        }
+        
+        Output& operator<< (const char* s ){
+            ofs << s;
+            return *this;
+        }
 };
 
 class CmdOutput: public Output {
@@ -163,7 +162,7 @@ public:
 		while( ( (bfIn.offset != bfIn.size) && (ss==INPUT_NEEDED) ) || (ss==OUTPUT_NEEDED) ){
 			InputState input_state = bClose? END_OF_FILE: OK;
 			ss = plp->pump(bfIn, input_state, bfOut);
-			// igore output
+			// ignore output
 			bfOut.offset = 0;
 			bfOut.size = buffersize;
 		}
@@ -185,6 +184,7 @@ public:
 			bfIn.size = 0;
 			bfIn.buf = NULL;
 		}
+
 		if(bfOut.buf != NULL) {
 			free(bfOut.buf);
 			bfOut.offset = 0;
@@ -200,8 +200,8 @@ public:
 			 size_t len = strlen(p);
 			 
 			 // Note: in ProcessLaunchingPlugin,  
-			 //   input: [offset, size) is used buffer, [0, offset) and  [size, buffersize) are unsued.
-			 //   output: [0, offset) is used buffer, [offset, size) are unsed
+			 //   input: [offset, size) is used buffer, [0, offset) and  [size, buffersize) are unused.
+			 //   output: [0, offset) is used buffer, [offset, size) are unused
 			 if(len > buffersize - bfIn.size){
 			 	flush();
 			 	if(bfIn.offset == bfIn.size){
@@ -243,7 +243,7 @@ private:
 	std::string separator;
     std::string fromcharset;
     std::string tocharset;
-		
+    
 	Output *os;
     CodeConverter* pCodeConverter;
 
@@ -297,7 +297,7 @@ public:
             tocharset = paramReader.getStringRef("tocharset").str();
 
         if(path.compare(DEFAULT_path) != 0) {
-	    	// output to file
+            // use system utilities to determine if that path is writable
             if(system(NULL)){
                 if(system(("mkdir -p $(dirname " + path + ")").c_str()) || system(("touch " + path).c_str())){
                     vt_report_error(1234, ("Cannot write to " + path).c_str());
@@ -349,35 +349,23 @@ public:
         std::string row = ""; // use row as a buffer for each row, this is an attempt to insure atomic writes
         size_t max_row_size = DEFAULT_buffersize;
         row.reserve(max_row_size);
-        char value[8192];
+        const int COLUMNS_SIZE = 8192-1;
+        char value[COLUMNS_SIZE+1];
         do {
-	        for(int i=0; i<columncount; i++) {
+            for(int i=0; i<columncount; i++) {
                 if (i > 0)  row.append(separator.c_str());
 
-			    const VerticaType &vt = types.getColumnType(i);
-                    // if(vt.isBinary() || vt.isLongVarbinary() || vt.isVarbinary()) {
-                        // const unsigned char * elem = (const unsigned char *)input_reader.getStringRef(i).data();
-                        // for(int b = 0; b < sizeof(elem); b++){
-                            // sprintf(value,"\%3o", elem[b]);
-                            // row.append(value);
-                        // }
-                    // }
-				if(vt.isBinary ()) {
-					// TODO: ignore
-				}
-                else if(vt.isBool()) {
+                const VerticaType &vt = types.getColumnType(i);
+                if(vt.isBool()) {
                     bool elem =  input_reader.getBoolRef(i);
                     if(elem != vbool_null){
                         elem == vbool_true ? row.append("t"): row.append("f");
-				    }
-				}
-				else if(vt.isDate()) {
-                    struct tm * dt;
-					DateADT elem =  input_reader.getDateRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        time_t rawtime = getUnixTimeFromDate(elem);
-                        dt = gmtime(&rawtime);
-                        strftime(value, sizeof(value), "%4Y-%2m-%2d", dt);
+                    }
+                }
+                else if(vt.isInt()) {
+                    vint elem =  input_reader.getIntRef(i);
+                    if (elem != vint_null ) {
+                        sprintf(value, "%lli", (long long)elem);
                         row.append(value);
                     }
                 }
@@ -385,79 +373,6 @@ public:
                     vfloat elem =  input_reader.getFloatRef(i);
                     if (!vfloatIsNull(elem)) {
                         sprintf(value, "%.15g", (double)elem);
-                        row.append(value);
-                    }
-				}
-				else if(vt.isInt()) {
-					vint elem =  input_reader.getIntRef(i);
-			        if (elem != vint_null ) {
-                            sprintf(value, "%lli", (long long)elem);
-                            row.append(value);
-                    }
-                }
-                else if(vt.isInterval()) {
-                    Interval elem = input_reader.getIntervalRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        int64 days, hour, min;
-                        float sec;
-                        VInterval::breakUp(elem, days, hour, min, sec);
-                        
-                        if (days > 0 || hour > 0 || min > 0 || sec > 0) {
-                            if(days > 0){
-                                sprintf(value, "%d", (int)days);
-                                row.append(value);
-                            }
-                            if (hour > 0 || min > 0 || sec > 0) {
-                                std::string format;
-                                if(days > 0){
-                                     format = " %02d";
-                                } else {
-                                     format = "%02d";
-                                }
-                                if(min > 0 || sec > 0){
-                                    format.append(":%02d");
-                                }
-                                if(sec > 0){
-                                    format.append(":%02d");
-                                }
-                                sprintf(value, format.c_str(), (int)hour, (int)min, (int)sec);
-                                row.append(value);
-
-                                int subseconds = (int)(elem % usPerSecond);
-                                if(subseconds > 0){
-                                    row.append(".");
-                                    if(subseconds < 100000){
-                                        row.append("0");
-                                    }
-                                    if(subseconds < 10000){
-                                        row.append("0");
-                                    }
-                                    if(subseconds < 1000){
-                                        row.append("0");
-                                    }
-                                    while(subseconds % 10 == 0){
-                                        subseconds = subseconds / 10;
-                                    }
-                                    sprintf(value, "%d", subseconds);
-                                    row.append(value);
-                                }
-                            }
-                        } else {
-                            sprintf(value, "%d", 0);
-                            row.append(value);
-                        }
-                    }
-                }
-                else if(vt.isIntervalYM()) {
-                    IntervalYM elem = input_reader.getIntervalYMRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        int64 years, months;
-                        VIntervalYM::breakUp(elem, years, months);
-
-                        sprintf(value, "%d", (int)years);
-                        row.append(value);
-                        row.append("-");
-                        sprintf(value, "%d", (int)months);
                         row.append(value);
                     }
                 }
@@ -468,7 +383,73 @@ public:
                         row.append(value);
                     }
                 }
-                else if (vt.isStringType()){ // catches VARCHAR/CHAR/VARBINARY/BINARY/LONG VARCHAR/LONG VARBINARY
+                else if(vt.isDate()) {
+                    DateADT elem =  input_reader.getDateRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        dateToChar(elem, value, COLUMNS_SIZE, USE_ISO_DATES, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isTimestamp()) {
+                    Timestamp elem = input_reader.getTimestampRef(i);
+                    if ((unsigned)elem != DT_NULL) {
+                        timestampToChar(elem, value, COLUMNS_SIZE, USE_ISO_DATES, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isTimestampTz()){
+                    TimestampTz elem = input_reader.getTimestampTzRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        timestamptzToChar(elem, value, COLUMNS_SIZE, USE_ISO_DATES, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isTime()){
+                    TimeADT elem = input_reader.getTimeRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        timeToChar(elem, value, COLUMNS_SIZE, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isTimeTz()){
+                    TimeTzADT elem = input_reader.getTimeTzRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        timetzToChar(elem, value, COLUMNS_SIZE, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isInterval()) {
+                    Interval elem = input_reader.getIntervalRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        intervalToChar(elem, INTERVAL_TYPMOD(6, INTERVAL_DAY2SECOND), value, COLUMNS_SIZE, USE_SQL_DATES, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isIntervalYM()) {
+                    IntervalYM elem = input_reader.getIntervalYMRef(i);
+                    if((unsigned)elem != DT_NULL){
+                        intervalToChar(elem, INTERVAL_TYPMOD(0, INTERVAL_YEAR2MONTH), value, COLUMNS_SIZE, USE_SQL_DATES, true);
+                        row.append(value);
+                    }
+                }
+                else if(vt.isBinary() || vt.isLongVarbinary() || vt.isVarbinary()) {
+                    const VString& elem = input_reader.getStringRef(i);
+                    if (! elem.isNull()) {
+                        const char * ba = elem.data();
+                        vsize  size = elem.length();
+                        for(vsize i = 0; i < size; i++){
+                            sprintf(value, "%02x", ba[i]);
+                            row.append(value);
+                        }
+                    }
+                }
+                else if (vt.isUuid()){ 
+                    const VUuid& elem = input_reader.getUuidRef(i);
+                    if (! elem.isNull()) {
+                        row.append(elem.toString());
+                    }
+                }
+                else if (vt.isStringType()){ 
                     const VString& elem = input_reader.getStringRef(i);
                     if (! elem.isNull()) {
                         if(pCodeConverter != NULL) {
@@ -478,181 +459,10 @@ public:
                         }
                     }
                 }
-                else if(vt.isTimestamp()) {
-                    Timestamp elem = input_reader.getTimestampRef(i);
-                    if ((unsigned)elem != DT_NULL) {
-                        struct tm * dt;
-                        time_t rawtime = getUnixTimeFromTimestamp(elem);
-
-                        dt = gmtime(&rawtime);
-                        // if(dt->tm_isdst != 0){
-                            // sprintf(value, "%+d", dt->tm_isdst);
-                            // row.append(value);
-                        // }
-                        
-                        int subseconds = (int)(elem % usPerSecond);
-                        if(subseconds < 0){
-                            dt->tm_sec -= 1;
-                            mktime(dt);
-                        }
-                        strftime(value, sizeof(value), "%4Y-%2m-%2d %2H:%2M:%2S", dt);
-                        row.append(value);
-                        if(subseconds != 0){
-                            if(subseconds < 0){
-                                subseconds = subseconds + 1000000;
-                            }
-                            row.append(".");
-                            if(subseconds < 100000){
-                                row.append("0");
-                            }
-                            if(subseconds < 10000){
-                                row.append("0");
-                            }
-                            if(subseconds < 1000){
-                                row.append("0");
-                            }
-                            while(subseconds % 10 == 0){
-                                subseconds = subseconds / 10;
-                            }
-                            sprintf(value, "%d", subseconds);
-                            row.append(value);
-                        }
-                    }
+                else {
+                    vt_report_error(1, "Unsupported type [%s] of column [%zu]", vt.getTypeStr(), i+1);
                 }
-                else if(vt.isTimestampTz()){
-                    TimestampTz elem = input_reader.getTimestampTzRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        struct tm * dt;
-                        time_t rawtime = getUnixTimeFromTimestampTz(elem);
-
-                        dt = localtime(&rawtime);
-
-                        int subseconds = (int)(elem % usPerSecond);
-                        if(subseconds < 0){
-                            dt->tm_sec -= 1;
-                            mktime(dt);
-                        }
-
-                        strftime(value, sizeof(value), "%4Y-%2m-%2d %2H:%2M:%2S", dt);
-                        row.append(value);
-
-                        if(subseconds != 0){
-                            if(subseconds < 0){
-                                subseconds = subseconds + 1000000;
-                            }
-                            row.append(".");
-                            if(subseconds < 100000){
-                                row.append("0");
-                            }
-                            if(subseconds < 10000){
-                                row.append("0");
-                            }
-                            if(subseconds < 1000){
-                                row.append("0");
-                            }
-                            while(subseconds % 10 == 0){
-                                subseconds = subseconds / 10;
-                            }
-                            sprintf(value, "%d", subseconds);
-                            row.append(value);
-                        }
-                        int32 zone;
-                        strftime(value, sizeof(value), " %z", dt); // pull this separately to allow sub second precision to be maintained
-                        sscanf(value, "%d", &zone);
-                        int32 zoneMinutes = zone % 100;
-                        zone = zone / 100;
-                        sprintf(value, "%+03d",zone); // pull this separately to allow sub second precision to be maintained
-                        row.append(value);
-                        if(zoneMinutes != 0) {
-                            sprintf(value, ":%02d", abs(zoneMinutes));
-                            row.append(value);
-                        }
-
-                        // add check for partial hour offset (such as Central Australia, Newfoundland, Nepal, and India)
-                    }
-                }
-                else if(vt.isTime()){
-                    TimeADT elem = input_reader.getTimeRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        struct tm * dt;
-                        time_t rawtime = getUnixTimeFromTime(elem);
-                        dt = gmtime(&rawtime);
-                        strftime(value, sizeof(value), "%2H:%2M:%2S", dt);
-                        row.append(value);
-                        int subseconds = (int)(elem % usPerSecond);
-                        if(subseconds > 0){
-                            row.append(".");
-                            if(subseconds < 100000){
-                                row.append("0");
-                            }
-                            if(subseconds < 10000){
-                                row.append("0");
-				            }
-                            if(subseconds < 1000){
-                                row.append("0");
-                            }
-                            while(subseconds % 10 == 0){
-                                subseconds = subseconds / 10;
-                            }
-                            sprintf(value, "%d", subseconds);
-                            row.append(value);
-                        }
-                    }
-                }
-                else if(vt.isTimeTz()){
-                    TimeTzADT elem = input_reader.getTimeTzRef(i);
-                    if((unsigned)elem != DT_NULL){
-                        struct tm * dt;
-                        int32 zone=getZoneTz(elem);
-                        int64 elemTime=getTimeTz(elem);
-                        time_t rawtime = getUnixTimeFromTime(elemTime);
-                        dt = gmtime(&rawtime);
-                        strftime(value, sizeof(value), "%2H:%2M:%2S", dt);
-                        row.append(value);
-                        int subseconds = (int)(elemTime % usPerSecond);
-                        if(subseconds > 0){
-                            row.append(".");
-                            if(subseconds < 100000){
-                                row.append("0");
-                            }
-                            if(subseconds < 10000){
-                                row.append("0");
-                            }
-                            if(subseconds < 1000){
-                                row.append("0");
-                            }
-                            while(subseconds % 10 == 0){
-                                subseconds = subseconds / 10;
-                            }
-                            while(subseconds % 10 == 0){
-                                subseconds = subseconds / 10;
-                            }
-                            sprintf(value, "%d", subseconds);
-                            row.append(value);
-                        }
-                        sprintf(value, "%+03d",-1*zone/60/60); // pull this separately to allow sub second precision to be maintained
-                        // strftime(value, sizeof(value), " %z", dt); // pull this separately to allow sub second precision to be maintained
-                        row.append(value);
-                        int32 zoneMinutes = (zone/60) % 60;
-                        if(zoneMinutes != 0) {
-                            sprintf(value, ":%02d", abs(zoneMinutes));
-                            row.append(value);
-				        }
-				    }
-				}
-				else {
-                    // catches char/varchar/long varchar
-			        const VString& elem = input_reader.getStringRef(i);
-			        if (! elem.isNull()) {
-					    if(pCodeConverter != NULL) {
-                            row.append(pCodeConverter->convert((char *)elem.str().c_str(), (size_t)elem.str().length()));
-					    }
-					    else{
-                            row.append(elem.str());
-					    }
-			        }
-				}
-	        }
+            }       
             row.append("\n");
             *os << row.c_str();
             if(row.length() > max_row_size){ // check if our string is too small
@@ -662,9 +472,9 @@ public:
                 row.reserve(max_row_size); // set the capacity once we have a good size
             }
             row.clear();
-		    	    
-			lines ++;
-		} while (input_reader.next());
+
+            lines ++;
+        } while (input_reader.next());
 		
 		os->flush();
 
@@ -726,3 +536,4 @@ class ExportdataFactory : public TransformFunctionFactory
 };
 
 RegisterFactory(ExportdataFactory);
+

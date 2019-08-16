@@ -13,13 +13,12 @@ SDK_HOME?=/opt/vertica/sdk
 VSQL?=/opt/vertica/bin/vsql
 
 # Define the .so name here (and update the references in install.sql and uninstall.sql)
-PACKAGE_LIBNAME=lib/exportdata.so
+PACKAGE_LIBNAME=lib/ParallelExport.so
 
 CXX=g++
-# CXXFLAGS=-I ${SDK_HOME}/include -g -Wall -Wno-unused-value -shared -fPIC 
 
-# CXXFLAGS := $(CXXFLAGS) -I $(SDK_HOME)/include -I $(SDK_HOME)/examples/HelperLibraries -O0 -g -fPIC -shared 
-CXXFLAGS := $(CXXFLAGS) -I $(SDK_HOME)/include -I $(SDK_HOME)/examples/HelperLibraries -O0 -g -Wall -Wno-unused-value -fPIC -shared -DNO_SUDO
+CXXFLAGS := $(CXXFLAGS) -I $(SDK_HOME)/include -I $(SDK_HOME)/examples/HelperLibraries -O2 -Wall -Wno-unused-value -fPIC -shared -DNO_SUDO
+#CXXFLAGS := $(CXXFLAGS) -I $(SDK_HOME)/include -I $(SDK_HOME)/examples/HelperLibraries -O0 -g -Wall -Wno-unused-value -fPIC -shared -DNO_SUDO
 
 
 ifdef RUN_VALGRIND
@@ -47,4 +46,4 @@ run: $(PACKAGE_LIBNAME) install test/test.sql
 clean:
 	[ -d lib ] && rm -rf lib || true
 	[ -f testresult.txt ] && rm -f testresult.txt || true
-	(ls test/export* 2>&1) > /dev/null && rm -f test/export* || true
+	(ls /tmp/export* 2>&1) > /dev/null && rm -f /tmp/export* || true

@@ -28,7 +28,9 @@ void ProcessLaunchingPlugin::setupProcess() {
     }
     
     // Open child
-    char *const argv[] = ProcessLaunchingPluginArgv("/bin/sh", "-c", const_cast<char *const>(cmd.c_str()));
+    char *const argv[] = ProcessLaunchingPluginArgv(const_cast<char *const>("/bin/sh"), 
+                                                    const_cast<char *const>("-c"), 
+                                                    const_cast<char *const>(cmd.c_str()));
     child = popen3(argv[0], argv, const_cast<char **>(&cStrArray[0]), O_NONBLOCK);
 
     // Validate the file handle; make sure we can read from this file
